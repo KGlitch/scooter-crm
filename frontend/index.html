@@ -156,11 +156,107 @@
     .event-box .delete-btn:hover {
       color: #b91c1c;
     }
+    #hyperraum-bg {
+      position: fixed;
+      left: 0; top: 0;
+      width: 100vw; height: 100vh;
+      z-index: 0;
+      pointer-events: none;
+      display: none;
+      background: black;
+      overflow: hidden;
+    }
+    body.hyperraum #hyperraum-bg {
+      display: block;
+    }
+    body.hyperraum main,
+    body.hyperraum header {
+      position: relative;
+      z-index: 1;
+    }
+
+    /* Neu: StarWars-Headline CSS */
+    .starwars-headline {
+      font-family: 'Arial Black', 'Arial', sans-serif;
+      color: #ffe81f;
+      text-shadow:
+        0 0 4px #ffe81f,
+        0 0 8px #ffe81f,
+        2px 2px 0 #000,
+        -2px -2px 0 #000,
+        2px -2px 0 #000,
+        -2px 2px 0 #000;
+      letter-spacing: 2px;
+      font-size: 2.2rem;
+      font-weight: bold;
+      text-transform: uppercase;
+      margin: 0;
+      padding: 0.2em 0;
+      transition: all 0.3s;
+    }
+
+    /* Star Wars Crawl Animation */
+    #starwars-crawl-container {
+      display: none;
+      position: fixed;
+      z-index: 2000;
+      left: 0; top: 0;
+      width: 100vw; height: 100vh;
+      pointer-events: none;
+      overflow: hidden;
+      background: transparent;
+    }
+    #starwars-crawl {
+      position: absolute;
+      bottom: -40vh;
+      width: 100vw;
+      height: 100vh;
+      color: #ffe81f;
+      font-family: 'Arial Black', 'Arial', sans-serif;
+      font-size: 2.1vw;
+      font-weight: bold;
+      text-align: center;
+      letter-spacing: 1.5px;
+      text-shadow:
+        0 0 4px #ffe81f,
+        0 0 8px #ffe81f,
+        2px 2px 0 #000,
+        -2px -2px 0 #000,
+        2px -2px 0 #000,
+        -2px 2px 0 #000;
+      transform-origin: 50% 100%;
+      animation: crawl 28s linear forwards;
+      white-space: pre-line;
+      line-height: 1.5;
+      pointer-events: none;
+    }
+    @keyframes crawl {
+      0% {
+        bottom: -40vh;
+        transform: perspective(400px) rotateX(20deg) scale(1.1);
+        opacity: 1;
+      }
+      90% {
+        opacity: 1;
+      }
+      100% {
+        bottom: 120vh;
+        transform: perspective(400px) rotateX(25deg) scale(0.7);
+        opacity: 0;
+      }
+    }
   </style>
 </head>
 <body>
+  <div id="hyperraum-bg"></div>
+  <!-- Star Wars Crawl Overlay -->
+  <div id="starwars-crawl-container">
+    <div id="starwars-crawl">
+      „Helft mir E-Scoot GmbH. Ihr seid meine letzte Hoffnung!“
+    </div>
+  </div>
   <header>
-    <h1>Berlin E-Scooter Demand Heatmap</h1>
+    <h1 id="main-headline">Berlin E-Scooter Demand Heatmap</h1>
   </header>
   <main>
     <div class="sidebar">
@@ -179,7 +275,19 @@
       <input type="range" id="hour" min="0" max="23" value="12">
       <span id="hour-label">12:00</span>
 
-      <h3>Events</h3>
+      <h3 style="margin-bottom:0.5rem;">Events</h3>
+      <div style="display:flex; gap:0.5rem; margin-bottom:1rem; flex-wrap:wrap;">
+        <label style="font-size:0.97em;">
+          Sortieren nach:
+          <select id="event-sort" style="margin-left:0.3rem;">
+            <option value="name">Name</option>
+            <option value="participants">Teilnehmer</option>
+            <option value="category">Kategorie</option>
+            <option value="district">Stadtteil</option>
+          </select>
+        </label>
+        <button id="event-sort-dir" title="Sortierrichtung" style="background:none;border:none;cursor:pointer;font-size:1.1em;">⬇️</button>
+      </div>
       <ul id="event-list"></ul>
     </div>
 
@@ -255,29 +363,39 @@
     const eventCategoryInput = document.getElementById("event-category");
     const eventModalTitle = document.getElementById("event-modal-title");
     let selectedDistrict = null;
+    let editIndex = null; // Neu: Index des zu bearbeitenden Events
 
-    function openEventModal(district) {
+    function openEventModal(district, eventData = null, idx = null) {
       selectedDistrict = district;
-      eventModalTitle.textContent = `Event in ${district}`;
-      eventNameInput.value = "";
-      eventParticipantsInput.value = "";
-      eventCategoryInput.value = "Musik";
+      editIndex = idx;
+      eventModalTitle.textContent = eventData
+        ? `Event in ${district} bearbeiten`
+        : `Event in ${district}`;
+      eventNameInput.value = eventData ? eventData.name : "";
+      eventParticipantsInput.value = eventData ? eventData.participants : "";
+      eventCategoryInput.value = eventData ? eventData.category : "Musik";
       eventModal.style.display = "flex";
     }
 
     function closeEventModal() {
       eventModal.style.display = "none";
       selectedDistrict = null;
+      editIndex = null;
     }
 
     eventForm.addEventListener("submit", function(e) {
       e.preventDefault();
-      events.push({
+      const newEvent = {
         district: selectedDistrict,
         name: eventNameInput.value,
         participants: parseInt(eventParticipantsInput.value),
         category: eventCategoryInput.value
-      });
+      };
+      if (editIndex !== null) {
+        events[editIndex] = newEvent;
+      } else {
+        events.push(newEvent);
+      }
       closeEventModal();
       renderEventList();
       updateMap();
@@ -285,14 +403,47 @@
 
     document.getElementById("event-cancel").onclick = closeEventModal;
 
+    let sortBy = "name";
+    let sortDir = 1; // 1 = aufsteigend, -1 = absteigend
+
+    document.getElementById("event-sort").addEventListener("change", function(e) {
+      sortBy = e.target.value;
+      renderEventList();
+    });
+    document.getElementById("event-sort-dir").addEventListener("click", function() {
+      sortDir *= -1;
+      this.textContent = sortDir === 1 ? "⬇️" : "⬆️";
+      renderEventList();
+    });
+
     function renderEventList() {
       const ul = document.getElementById("event-list");
       ul.innerHTML = "";
-      events.forEach((ev, idx) => {
+
+      // Sortieren
+      let sorted = [...events];
+      sorted.sort((a, b) => {
+        let va = a[sortBy], vb = b[sortBy];
+        if (sortBy === "participants") {
+          va = Number(va); vb = Number(vb);
+          return (va - vb) * sortDir;
+        }
+        // String-Vergleich, case-insensitive
+        va = (va + "").toLowerCase();
+        vb = (vb + "").toLowerCase();
+        if (va < vb) return -1 * sortDir;
+        if (va > vb) return 1 * sortDir;
+        return 0;
+      });
+
+      sorted.forEach((ev, idxSorted) => {
+        // Finde Original-Index für Edit/Löschen
+        const idx = events.indexOf(ev);
         const li = document.createElement("li");
         li.className = "event-box";
         li.innerHTML = `
           <button class="delete-btn" title="Löschen" data-idx="${idx}">🗑️</button>
+          <button class="edit-btn" title="Bearbeiten" data-idx="${idx}" style="position:absolute;top:0.5rem;right:2.2rem;background:none;border:none;color:#3b82f6;font-size:1.1em;cursor:pointer;padding:0;">✏️</button>
           <strong>${ev.name}</strong>
           <span>${ev.category}, ${ev.participants} TN</span>
           <em>${ev.district}</em>
@@ -301,6 +452,9 @@
           events.splice(idx, 1);
           renderEventList();
           updateMap(); // Heatmap nach Entfernen aktualisieren
+        };
+        li.querySelector(".edit-btn").onclick = function() {
+          openEventModal(ev.district, ev, idx);
         };
         ul.appendChild(li);
       });
@@ -399,6 +553,141 @@
 
         updateMap();
       });
+
+      // Hyperraum-Animation (Canvas)
+      const hyperraumBg = document.getElementById('hyperraum-bg');
+      let hyperraumActive = false;
+      let hyperraumCanvas, ctx, stars = [], animationId;
+
+      function startHyperraum() {
+        if (hyperraumActive) return;
+        hyperraumActive = true;
+        document.body.classList.add('hyperraum');
+        setStarWarsHeadline(true);
+        showStarWarsCrawl();
+        if (!hyperraumCanvas) {
+          hyperraumCanvas = document.createElement('canvas');
+          hyperraumCanvas.width = window.innerWidth;
+          hyperraumCanvas.height = window.innerHeight;
+          hyperraumCanvas.style.width = "100vw";
+          hyperraumCanvas.style.height = "100vh";
+          hyperraumCanvas.style.display = "block";
+          hyperraumCanvas.style.position = "absolute";
+          hyperraumCanvas.style.left = "0";
+          hyperraumCanvas.style.top = "0";
+          hyperraumBg.appendChild(hyperraumCanvas);
+          ctx = hyperraumCanvas.getContext('2d');
+          window.addEventListener('resize', () => {
+            hyperraumCanvas.width = window.innerWidth;
+            hyperraumCanvas.height = window.innerHeight;
+          });
+        }
+        createStars();
+        animateStars();
+      }
+
+      function stopHyperraum() {
+        hyperraumActive = false;
+        document.body.classList.remove('hyperraum');
+        setStarWarsHeadline(false);
+        document.getElementById('starwars-crawl-container').style.display = 'none';
+        if (animationId) cancelAnimationFrame(animationId);
+        if (ctx) ctx.clearRect(0, 0, hyperraumCanvas.width, hyperraumCanvas.height);
+      }
+
+      function createStars() {
+        stars = [];
+        const w = hyperraumCanvas.width, h = hyperraumCanvas.height;
+        for (let i = 0; i < 350; i++) {
+          const angle = Math.random() * 2 * Math.PI;
+          const radius = Math.random() * (w/2);
+          stars.push({
+            x: w/2 + Math.cos(angle) * radius,
+            y: h/2 + Math.sin(angle) * radius,
+            vx: (Math.cos(angle) * (2 + Math.random() * 4)),
+            vy: (Math.sin(angle) * (2 + Math.random() * 4)),
+            size: 0.8 + Math.random() * 1.6,
+            alpha: 0.7 + Math.random() * 0.3
+          });
+        }
+      }
+
+      function animateStars() {
+        if (!hyperraumActive) return;
+        const w = hyperraumCanvas.width, h = hyperraumCanvas.height;
+        ctx.clearRect(0, 0, w, h);
+        for (let star of stars) {
+          ctx.save();
+          ctx.globalAlpha = star.alpha;
+          ctx.strokeStyle = "#00eaff";
+          ctx.lineWidth = star.size;
+          ctx.beginPath();
+          ctx.moveTo(star.x, star.y);
+          ctx.lineTo(star.x + star.vx*3, star.y + star.vy*3);
+          ctx.stroke();
+          ctx.restore();
+
+          star.x += star.vx;
+          star.y += star.vy;
+          // Reset star if out of bounds
+          if (
+            star.x < 0 || star.x > w ||
+            star.y < 0 || star.y > h
+          ) {
+            const angle = Math.random() * 2 * Math.PI;
+            star.x = w/2;
+            star.y = h/2;
+            star.vx = Math.cos(angle) * (2 + Math.random() * 4);
+            star.vy = Math.sin(angle) * (2 + Math.random() * 4);
+          }
+        }
+        animationId = requestAnimationFrame(animateStars);
+      }
+
+    // Datum überwachen
+    document.getElementById("date").addEventListener("change", function(e) {
+      const val = e.target.value;
+      if (/^2025-05-04$/.test(val)) {
+        startHyperraum();
+      } else {
+        stopHyperraum();
+      }
+      updateMap();
+    });
+
+    // Falls beim Laden schon 4. Mai gewählt ist
+    window.addEventListener('DOMContentLoaded', () => {
+      const val = document.getElementById("date").value;
+      if (/^2025-05-04$/.test(val)) {
+        startHyperraum();
+      }
+    });
+
+    // Star Wars Crawl anzeigen/verstecken
+    function showStarWarsCrawl() {
+      const crawlContainer = document.getElementById('starwars-crawl-container');
+      const crawl = document.getElementById('starwars-crawl');
+      crawlContainer.style.display = 'block';
+      crawl.style.animation = 'none';
+      // Trigger reflow to restart animation
+      void crawl.offsetWidth;
+      crawl.style.animation = '';
+      setTimeout(() => {
+        crawlContainer.style.display = 'none';
+      }, 28000); // Dauer der Animation
+    }
+
+    // Headline im StarWars-Stil anpassen
+    function setStarWarsHeadline(active) {
+      const h1 = document.getElementById("main-headline");
+      if (active) {
+        h1.classList.add("starwars-headline");
+        h1.textContent = "Berlin E-Scooter Demand Hyperraum";
+      } else {
+        h1.classList.remove("starwars-headline");
+        h1.textContent = "Berlin E-Scooter Demand Heatmap";
+      }
+    }
   </script>
 </body>
 </html>
