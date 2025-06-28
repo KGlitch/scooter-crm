@@ -155,7 +155,7 @@
       const body = {
         wochentag: getWochentag(date),
         jahreszeit: getJahreszeit(dt.getMonth() + 1),
-        wetter: { sunny: "Sonnig", rainy: "Regen", cloudy: "Bewölkt" }[weather],
+        wetter: { sunny: "Sonnig", rainy: "Regen", cloudy: "Bewölkt", windy: "Windig" }[weather],
         event_art: "Musik",
         feiertag: isHoliday(date),
         stunde: hour
