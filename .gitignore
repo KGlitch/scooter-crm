@@ -44,3 +44,12 @@ yarn-error.log*
 
 #venv
 venv/
+
+#Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.Python
+env/
+.venv/  

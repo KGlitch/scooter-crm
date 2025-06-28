@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
+  <meta charset="UTF-8" />
   <title>Berlin E-Scooter Demand Heatmap</title>
   <script src="https://d3js.org/d3.v7.min.js"></script>
   <style>
@@ -103,11 +103,10 @@
     ];
 
     const colorScale = d3.scaleSequential()
-      .domain([50, 150])
+      .domain([0, 150])
       .interpolator(d3.interpolateBlues);
 
     const tooltip = d3.select("#tooltip");
-
     const width = 800, height = 600;
     const svg = d3.select("#map")
       .append("svg")
@@ -116,7 +115,6 @@
       .call(d3.zoom().on("zoom", (event) => {
         svg.select("g").attr("transform", event.transform);
       }));
-
     const g = svg.append("g");
 
     const projection = d3.geoMercator()
@@ -135,27 +133,62 @@
 
     let currentDemandData = {};
 
-    function fetchDummyDemand(date, hour, weather) {
-      const result = {};
-      berlinDistricts.forEach(d => {
-        result[d] = 50 + Math.floor(Math.random() * 100); // 50-150
-      });
-      return result;
+    function getWochentag(dateStr) {
+      const dt = new Date(dateStr);
+      return ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"][dt.getDay()];
     }
 
-    function updateMap() {
+    function getJahreszeit(month) {
+      if ([12, 1, 2].includes(month)) return "Winter";
+      if ([3, 4, 5].includes(month)) return "Frühling";
+      if ([6, 7, 8].includes(month)) return "Sommer";
+      return "Herbst";
+    }
+
+    function isHoliday(dateStr) {
+      const dt = new Date(dateStr);
+      return dt.getDay() === 0 || dt.getDay() === 6; // So & Sa als "Feiertag"
+    }
+
+    async function fetchRealDemand(date, hour, weather) {
+      const dt = new Date(date);
+      const body = {
+        wochentag: getWochentag(date),
+        jahreszeit: getJahreszeit(dt.getMonth() + 1),
+        wetter: { sunny: "Sonnig", rainy: "Regen", cloudy: "Bewölkt" }[weather],
+        event_art: "Musik",
+        feiertag: isHoliday(date),
+        stunde: hour
+      };
+
+      try {
+        const res = await fetch("http://localhost:8000/predict", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(body)
+        });
+        return await res.json();
+      } catch (err) {
+        console.error("API error", err);
+        return {};
+      }
+    }
+
+    async function updateMap() {
       const date = document.getElementById("date").value;
       const hour = parseInt(document.getElementById("hour").value);
       const weather = document.getElementById("weather").value;
 
-      currentDemandData = fetchDummyDemand(date, hour, weather);
+      currentDemandData = await fetchRealDemand(date, hour, weather);
 
       g.selectAll("path")
         .transition()
         .duration(300)
         .attr("fill", d => {
           const name = d.properties.name;
-          return berlinDistricts.includes(name) ? colorScale(currentDemandData[name]) : "#eee";
+          return berlinDistricts.includes(name)
+            ? colorScale(currentDemandData[name] || 0)
+            : "#eee";
         });
     }
 
@@ -177,7 +210,7 @@
             const demand = currentDemandData[name] || 0;
             tooltip
               .style("display", "block")
-              .html(`<strong>${name}</strong><br>Demand: ${demand}`);
+              .html(`<strong>${name}</strong><br>Nachfrage: ${demand}`);
           })
           .on("mousemove", (event) => {
             tooltip.style("left", (event.pageX + 10) + "px")

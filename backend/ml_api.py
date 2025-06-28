@@ -1,16 +1,72 @@
 # ml_api.py
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 import joblib
+import pandas as pd
 
 app = FastAPI()
-model = joblib.load("model.pkl")  # ML Model loading
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_methods=["*"],
+    allow_headers=["*"]
+)
 
-class InputData(BaseModel):
-    feature1: float
-    feature2: float
+model = joblib.load("xgb_scooter_model.joblib")
+
+feature_columns = [
+    'Größe', 'Stunde_sin', 'Stunde_cos',
+    'Stadtteil_Friedrichshain', 'Stadtteil_Kreuzberg', 'Stadtteil_Lichtenberg',
+    'Stadtteil_Marzahn', 'Stadtteil_Mitte', 'Stadtteil_Neukölln',
+    'Stadtteil_Prenzlauer Berg', 'Stadtteil_Reinickendorf', 'Stadtteil_Spandau',
+    'Stadtteil_Treptow', 'Wochentag_Friday', 'Wochentag_Monday',
+    'Wochentag_Saturday', 'Wochentag_Sunday', 'Wochentag_Thursday',
+    'Wochentag_Tuesday', 'Wochentag_Wednesday', 'Jahreszeit_Frühling',
+    'Jahreszeit_Herbst', 'Jahreszeit_Sommer', 'Jahreszeit_Winter',
+    'Wetter_Bewölkt', 'Wetter_Regen', 'Wetter_Sonnig', 'Wetter_Windig',
+    'Event Art_Kultur', 'Event Art_Musik', 'Event Art_Politik',
+    'Event Art_Sport', 'Feiertag_False', 'Feiertag_True'
+]
+
+districts = [
+    "Friedrichshain", "Kreuzberg", "Lichtenberg", "Marzahn", "Mitte",
+    "Neukölln", "Prenzlauer Berg", "Reinickendorf", "Spandau", "Treptow"
+]
+
+class DemandRequest(BaseModel):
+    wochentag: str
+    jahreszeit: str
+    wetter: str
+    event_art: str
+    feiertag: bool
+    stunde: int
+    größe: float = 300.0  # Defaultwert
 
 @app.post("/predict")
-def predict(data: InputData):
-    prediction = model.predict([[data.feature1, data.feature2]])
-    return {"prediction": prediction[0]}
+def predict_demand(data: DemandRequest):
+    from math import sin, cos, pi
+    hour_angle = 2 * pi * data.stunde / 24
+    sin_hour = round(sin(hour_angle), 4)
+    cos_hour = round(cos(hour_angle), 4)
+
+    predictions = {}
+
+    for stadtteil in districts:
+        features = dict.fromkeys(feature_columns, 0.0)
+        features["Größe"] = data.größe
+        features["Stunde_sin"] = sin_hour
+        features["Stunde_cos"] = cos_hour
+
+        features[f"Stadtteil_{stadtteil}"] = 1
+        features[f"Wochentag_{data.wochentag}"] = 1
+        features[f"Jahreszeit_{data.jahreszeit}"] = 1
+        features[f"Wetter_{data.wetter}"] = 1
+        features[f"Event Art_{data.event_art}"] = 1
+        features[f"Feiertag_{data.feiertag}"] = 1
+
+        X = pd.DataFrame([features])
+        y_pred = model.predict(X)[0]
+        predictions[stadtteil] = round(float(y_pred), 2)
+
+    return predictions
