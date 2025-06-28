@@ -280,6 +280,7 @@
       });
       closeEventModal();
       renderEventList();
+      updateMap();
     });
 
     document.getElementById("event-cancel").onclick = closeEventModal;
@@ -299,6 +300,7 @@
         li.querySelector(".delete-btn").onclick = function() {
           events.splice(idx, 1);
           renderEventList();
+          updateMap(); // Heatmap nach Entfernen aktualisieren
         };
         ul.appendChild(li);
       });
@@ -329,7 +331,8 @@
         wetter: { sunny: "Sonnig", rainy: "Regen", cloudy: "Bewölkt", windy: "Windig" }[weather],
         event_art: "Musik",
         feiertag: isHoliday(date),
-        stunde: hour
+        stunde: hour,
+        events
       };
 
       try {

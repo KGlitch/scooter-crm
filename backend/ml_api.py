@@ -4,6 +4,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 import joblib
 import pandas as pd
+from typing import List, Optional
 
 app = FastAPI()
 app.add_middleware(
@@ -34,6 +35,12 @@ districts = [
     "Neukölln", "Prenzlauer Berg", "Reinickendorf", "Spandau", "Treptow"
 ]
 
+class Event(BaseModel):
+    district: str
+    name: str
+    participants: int
+    category: str
+
 class DemandRequest(BaseModel):
     wochentag: str
     jahreszeit: str
@@ -41,7 +48,8 @@ class DemandRequest(BaseModel):
     event_art: str
     feiertag: bool
     stunde: int
-    größe: float = 300.0  # Defaultwert
+    größe: float = 300.0
+    events: Optional[List[Event]] = None  # <--- Events akzeptieren
 
 @app.post("/predict")
 def predict_demand(data: DemandRequest):
@@ -51,6 +59,13 @@ def predict_demand(data: DemandRequest):
     cos_hour = round(cos(hour_angle), 4)
 
     predictions = {}
+
+    # Events pro Stadtteil aufsummieren
+    event_counts = {d: 0 for d in districts}
+    if data.events:
+        for ev in data.events:
+            if ev.district in event_counts:
+                event_counts[ev.district] += ev.participants
 
     for stadtteil in districts:
         features = dict.fromkeys(feature_columns, 0.0)
@@ -64,6 +79,9 @@ def predict_demand(data: DemandRequest):
         features[f"Wetter_{data.wetter}"] = 1
         features[f"Event Art_{data.event_art}"] = 1
         features[f"Feiertag_{data.feiertag}"] = 1
+
+        # Beispiel: Teilnehmerzahl als Einfluss auf Größe
+        features["Größe"] += event_counts[stadtteil]
 
         X = pd.DataFrame([features])
         y_pred = model.predict(X)[0]
