@@ -5,7 +5,7 @@ Interaktive D3.js-Visualisierung + Machine Learning Vorhersage (XGBoost) der E-S
 
 ---
 
-### 📁 Projektstruktur
+## 📁 Projektstruktur
 
 ```text
 scooter-crm/
@@ -18,7 +18,7 @@ scooter-crm/
 
 ---
 
-### 🧑‍💻 Voraussetzungen
+## 🧑‍💻 Voraussetzungen
 
 * Python 3.10+
 * Node.js **nicht notwendig**
@@ -27,16 +27,16 @@ scooter-crm/
 
 ---
 
-### 🔧 Setup
+## 🔧 Setup
 
-#### 1. Repository klonen
+### 1. Repository klonen
 
 ```bash
 git clone <repo-url>
 cd scooter-crm
 ```
 
-#### 2. Python-Umgebung aufsetzen
+### 2. Python-Umgebung aufsetzen
 
 ```bash
 cd backend
@@ -52,7 +52,7 @@ Falls keine `requirements.txt` vorhanden:
 pip install fastapi uvicorn scikit-learn pandas xgboost joblib
 ```
 
-#### 3. (macOS) XGBoost-Fehler beheben
+### 3. (macOS) XGBoost-Fehler beheben
 
 Installiere OpenMP, falls noch nicht vorhanden:
 
@@ -62,7 +62,7 @@ brew install libomp
 
 ---
 
-### ▶️ Backend starten (ML-API)
+## ▶️ Backend starten (ML-API)
 
 ```bash
 uvicorn ml_api:app --reload
@@ -72,14 +72,14 @@ Läuft unter: `http://localhost:8000/predict`
 
 ---
 
-### 🌐 Frontend starten
+## 🌐 Frontend starten
 
-#### Option A: mit Live Server (VS Code)
+### Option A: mit Live Server (VS Code)
 
 * Öffne `frontend/index.html` in VS Code
 * Rechtsklick → **"Open with Live Server"**
 
-#### Option B: über Python HTTP-Server
+### Option B: über Python HTTP-Server
 
 ```bash
 cd frontend
@@ -90,7 +90,7 @@ Dann im Browser öffnen: [http://localhost:5500](http://localhost:5500)
 
 ---
 
-### ✅ Features
+## ✅ Features
 
 * Nachfrage-Vorhersage pro Stadtteil anhand:
 
