@@ -1,53 +1,191 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <title>E-Scooter Nachfrage</title>
+  <meta charset="UTF-8">
+  <title>Berlin E-Scooter Demand Heatmap</title>
   <script src="https://d3js.org/d3.v7.min.js"></script>
+  <style>
+    body {
+      font-family: 'Segoe UI', sans-serif;
+      background-color: #f0f4f8;
+      color: #1f3b4d;
+      margin: 0;
+      padding: 0;
+      display: flex;
+      flex-direction: column;
+      height: 100vh;
+    }
+    header {
+      background-color: #1e3a5f;
+      color: white;
+      padding: 1rem 2rem;
+      text-align: center;
+    }
+    main {
+      display: flex;
+      flex: 1;
+      overflow: hidden;
+    }
+    .sidebar {
+      background-color: #e2e8f0;
+      padding: 2rem;
+      width: 300px;
+      box-shadow: 2px 0 6px rgba(0,0,0,0.1);
+      display: flex;
+      flex-direction: column;
+    }
+    .sidebar label {
+      margin: 0.5rem 0 0.2rem;
+    }
+    .sidebar input, .sidebar select {
+      margin-bottom: 1rem;
+      padding: 0.4rem 0.6rem;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+    }
+    .sidebar #hour-label {
+      font-weight: bold;
+    }
+    #map {
+      flex: 1;
+      padding: 2rem;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+    }
+    svg {
+      max-width: 100%;
+      height: auto;
+    }
+    .tooltip {
+      position: absolute;
+      background: rgba(255, 255, 255, 0.95);
+      padding: 10px;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+      pointer-events: none;
+      box-shadow: 0 0 6px rgba(0,0,0,0.1);
+      font-size: 14px;
+    }
+  </style>
 </head>
 <body>
-  <h1>Nachfragevorhersage</h1>
-  <label>Uhrzeit: <input id="hour" type="number" min="0" max="23" /></label>
-  <label>Temperatur: <input id="temp" type="number" /></label>
-  <button onclick="predict()">Vorhersagen</button>
-  <div id="chart"></div>
+  <header>
+    <h1>Berlin E-Scooter Demand Heatmap</h1>
+  </header>
+  <main>
+    <div class="sidebar">
+      <label for="date">Date:</label>
+      <input type="date" id="date" value="2025-06-28">
+
+      <label for="weather">Weather:</label>
+      <select id="weather">
+        <option value="sunny">Sunny</option>
+        <option value="rainy">Rainy</option>
+        <option value="cloudy">Cloudy</option>
+      </select>
+
+      <label for="hour">Hour:</label>
+      <input type="range" id="hour" min="0" max="23" value="12">
+      <span id="hour-label">12:00</span>
+    </div>
+
+    <div id="map"></div>
+    <div class="tooltip" id="tooltip" style="display:none;"></div>
+  </main>
 
   <script>
-    async function predict() {
-      const hour = parseInt(document.getElementById("hour").value);
-      const temperature = parseFloat(document.getElementById("temp").value);
+    const berlinDistricts = [
+      "Mitte", "Friedrichshain", "Kreuzberg", "Prenzlauer Berg",
+      "Neukölln", "Charlottenburg", "Schöneberg", "Wedding",
+      "Spandau", "Marzahn", "Lichtenberg", "Reinickendorf", "Treptow"
+    ];
 
-      const res = await fetch("http://localhost:8000/predict", {
-        method: "POST",
-        headers: {"Content-Type": "application/json"},
-        body: JSON.stringify({hour, temperature, weather: "sunny"}) // Beispiel
+    const colorScale = d3.scaleSequential()
+      .domain([50, 150])
+      .interpolator(d3.interpolateBlues);
+
+    const tooltip = d3.select("#tooltip");
+
+    const width = 800, height = 600;
+    const svg = d3.select("#map")
+      .append("svg")
+      .attr("width", width)
+      .attr("height", height)
+      .call(d3.zoom().on("zoom", (event) => {
+        svg.select("g").attr("transform", event.transform);
+      }));
+
+    const g = svg.append("g");
+
+    const projection = d3.geoMercator()
+      .center([13.4, 52.52])
+      .scale(40000)
+      .translate([width / 2, height / 2]);
+
+    const path = d3.geoPath().projection(projection);
+
+    document.getElementById("hour").addEventListener("input", e => {
+      document.getElementById("hour-label").textContent = `${e.target.value}:00`;
+      updateMap();
+    });
+    document.getElementById("date").addEventListener("change", updateMap);
+    document.getElementById("weather").addEventListener("change", updateMap);
+
+    let currentDemandData = {};
+
+    function fetchDummyDemand(date, hour, weather) {
+      const result = {};
+      berlinDistricts.forEach(d => {
+        result[d] = 50 + Math.floor(Math.random() * 100); // 50-150
       });
-
-      const data = await res.json();
-      renderBarChart(data.demand_prediction);
+      return result;
     }
 
-    function renderBarChart(value) {
-      d3.select("#chart").selectAll("*").remove();
+    function updateMap() {
+      const date = document.getElementById("date").value;
+      const hour = parseInt(document.getElementById("hour").value);
+      const weather = document.getElementById("weather").value;
 
-      const svg = d3.select("#chart")
-        .append("svg")
-        .attr("width", 300)
-        .attr("height", 200);
+      currentDemandData = fetchDummyDemand(date, hour, weather);
 
-      svg.append("rect")
-        .attr("x", 50)
-        .attr("y", 200 - value)
-        .attr("width", 50)
-        .attr("height", value)
-        .attr("fill", "steelblue");
-
-      svg.append("text")
-        .attr("x", 50)
-        .attr("y", 200 - value - 10)
-        .text(`${value} Anfragen`)
-        .attr("fill", "black");
+      g.selectAll("path")
+        .transition()
+        .duration(300)
+        .attr("fill", d => {
+          const name = d.properties.name;
+          return berlinDistricts.includes(name) ? colorScale(currentDemandData[name]) : "#eee";
+        });
     }
+
+    d3.json("https://raw.githubusercontent.com/codeforgermany/click_that_hood/main/public/data/berlin.geojson")
+      .then(geoData => {
+        g.selectAll("path")
+          .data(geoData.features)
+          .enter()
+          .append("path")
+          .attr("d", path)
+          .attr("stroke", "#1f3b4d")
+          .attr("fill", d => {
+            const name = d.properties.name;
+            return berlinDistricts.includes(name) ? colorScale(0) : "#eee";
+          })
+          .on("mouseover", (event, d) => {
+            const name = d.properties.name;
+            if (!berlinDistricts.includes(name)) return;
+            const demand = currentDemandData[name] || 0;
+            tooltip
+              .style("display", "block")
+              .html(`<strong>${name}</strong><br>Demand: ${demand}`);
+          })
+          .on("mousemove", (event) => {
+            tooltip.style("left", (event.pageX + 10) + "px")
+                   .style("top", (event.pageY - 20) + "px");
+          })
+          .on("mouseout", () => tooltip.style("display", "none"));
+
+        updateMap();
+      });
   </script>
 </body>
 </html>
