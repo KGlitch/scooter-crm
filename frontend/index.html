@@ -295,26 +295,33 @@
     <div class="tooltip" id="tooltip" style="display:none;"></div>
 
     <!-- Event Modal -->
-    <div id="event-modal" style="display:none; position:fixed; left:0; top:0; width:100vw; height:100vh; background:rgba(0,0,0,0.3); align-items:center; justify-content:center; z-index:1000;">
-      <form id="event-form" style="background:white; padding:2rem; border-radius:8px; min-width:300px; display:flex; flex-direction:column; gap:1rem; box-shadow:0 2px 12px rgba(0,0,0,0.2);">
-        <h3 id="event-modal-title"></h3>
-        <label>Name: <input type="text" id="event-name" required></label>
-        <label>Teilnehmeranzahl: <input type="number" id="event-participants" min="1" required></label>
-        <label>Kategorie:
-          <select id="event-category" required>
-            <option value="Musik">Musik</option>
-            <option value="Sport">Sport</option>
-            <option value="Politik">Politik</option>
-            <option value="Kultur">Kultur</option>
-          </select>
-        </label>
-        <div style="display:flex; gap:1rem; justify-content:flex-end;">
-          <button type="button" id="event-cancel">Abbrechen</button>
-          <button type="submit">Speichern</button>
-        </div>
-      </form>
-    </div>
-  </main>
+   <div id="event-modal" style="display:none; position:fixed; left:0; top:0; width:100vw; height:100vh; background:rgba(0,0,0,0.3); align-items:center; justify-content:center; z-index:1000;">
+    <form id="event-form" style="background:white; padding:2rem; border-radius:8px; min-width:300px; display:flex; flex-direction:column; gap:1rem; box-shadow:0 2px 12px rgba(0,0,0,0.2);">
+      <h3 id="event-modal-title"></h3>
+      <label>Name: <input type="text" id="event-name" required></label>
+      <label>Teilnehmeranzahl: <input type="number" id="event-participants" min="1" required></label>
+      <label>Kategorie:
+        <select id="event-category" required>
+          <option value="Musik">Musik</option>
+          <option value="Sport">Sport</option>
+          <option value="Politik">Politik</option>
+          <option value="Kultur">Kultur</option>
+        </select>
+      </label>
+      <label>Startzeit:
+        <input type="range" id="event-start-time" min="0" max="23" value="12">
+        <span id="start-time-label">12:00</span>
+      </label>
+      <label>Endzeit:
+        <input type="range" id="event-end-time" min="0" max="23" value="18">
+        <span id="end-time-label">18:00</span>
+      </label>
+      <div style="display:flex; gap:1rem; justify-content:flex-end;">
+        <button type="button" id="event-cancel">Abbrechen</button>
+        <button type="submit">Speichern</button>
+      </div>
+    </form>
+  </div>
 
   <script>
     const berlinDistricts = [
@@ -353,7 +360,7 @@
     document.getElementById("weather").addEventListener("change", updateMap);
 
     let currentDemandData = {};
-    let events = [];
+    let events = {};
 
     // Event Modal Logic
     const eventModal = document.getElementById("event-modal");
@@ -365,15 +372,30 @@
     let selectedDistrict = null;
     let editIndex = null; // Neu: Index des zu bearbeitenden Events
 
-    function openEventModal(district, eventData = null, idx = null) {
+    const eventStartTimeInput = document.getElementById("event-start-time");
+    const eventEndTimeInput = document.getElementById("event-end-time");
+    const startTimeLabel = document.getElementById("start-time-label");
+    const endTimeLabel = document.getElementById("end-time-label");
+
+    eventStartTimeInput.addEventListener("input", () => {
+      startTimeLabel.textContent = `${eventStartTimeInput.value}:00`;
+    });
+    eventEndTimeInput.addEventListener("input", () => {
+      endTimeLabel.textContent = `${eventEndTimeInput.value}:00`;
+    });
+
+    function openEventModal(district, eventData = null) {
       selectedDistrict = district;
-      editIndex = idx;
       eventModalTitle.textContent = eventData
         ? `Event in ${district} bearbeiten`
         : `Event in ${district}`;
       eventNameInput.value = eventData ? eventData.name : "";
       eventParticipantsInput.value = eventData ? eventData.participants : "";
       eventCategoryInput.value = eventData ? eventData.category : "Musik";
+      eventStartTimeInput.value = eventData?.startTime ?? 12;
+      eventEndTimeInput.value = eventData?.endTime ?? 18;
+      startTimeLabel.textContent = `${eventStartTimeInput.value}:00`;
+      endTimeLabel.textContent = `${eventEndTimeInput.value}:00`;
       eventModal.style.display = "flex";
     }
 
@@ -389,72 +411,48 @@
         district: selectedDistrict,
         name: eventNameInput.value,
         participants: parseInt(eventParticipantsInput.value),
-        category: eventCategoryInput.value
+        category: eventCategoryInput.value,
+        startTime: parseInt(eventStartTimeInput.value),
+        endTime: parseInt(eventEndTimeInput.value)
       };
-      if (editIndex !== null) {
-        events[editIndex] = newEvent;
-      } else {
-        events.push(newEvent);
-      }
+
+      events[selectedDistrict] = newEvent;
       closeEventModal();
       renderEventList();
       updateMap();
     });
 
-    document.getElementById("event-cancel").onclick = closeEventModal;
-
-    let sortBy = "name";
-    let sortDir = 1; // 1 = aufsteigend, -1 = absteigend
-
-    document.getElementById("event-sort").addEventListener("change", function(e) {
-      sortBy = e.target.value;
-      renderEventList();
-    });
-    document.getElementById("event-sort-dir").addEventListener("click", function() {
-      sortDir *= -1;
-      this.textContent = sortDir === 1 ? "⬇️" : "⬆️";
-      renderEventList();
-    });
-
     function renderEventList() {
       const ul = document.getElementById("event-list");
       ul.innerHTML = "";
-
-      // Sortieren
-      let sorted = [...events];
+      let sorted = Object.keys(events).map(key => events[key]);
       sorted.sort((a, b) => {
         let va = a[sortBy], vb = b[sortBy];
         if (sortBy === "participants") {
-          va = Number(va); vb = Number(vb);
           return (va - vb) * sortDir;
         }
-        // String-Vergleich, case-insensitive
         va = (va + "").toLowerCase();
         vb = (vb + "").toLowerCase();
-        if (va < vb) return -1 * sortDir;
-        if (va > vb) return 1 * sortDir;
-        return 0;
+        return va < vb ? -1 * sortDir : va > vb ? 1 * sortDir : 0;
       });
-
-      sorted.forEach((ev, idxSorted) => {
-        // Finde Original-Index für Edit/Löschen
-        const idx = events.indexOf(ev);
+      sorted.forEach(ev => {
         const li = document.createElement("li");
         li.className = "event-box";
         li.innerHTML = `
-          <button class="delete-btn" title="Löschen" data-idx="${idx}">🗑️</button>
-          <button class="edit-btn" title="Bearbeiten" data-idx="${idx}" style="position:absolute;top:0.5rem;right:2.2rem;background:none;border:none;color:#3b82f6;font-size:1.1em;cursor:pointer;padding:0;">✏️</button>
+          <button class="delete-btn" title="Löschen">🗑️</button>
+          <button class="edit-btn" title="Bearbeiten" style="position:absolute;top:0.5rem;right:2.2rem;background:none;border:none;color:#3b82f6;font-size:1.1em;cursor:pointer;padding:0;">✏️</button>
           <strong>${ev.name}</strong>
           <span>${ev.category}, ${ev.participants} TN</span>
+          <span>Zeit: ${ev.startTime}:00 – ${ev.endTime}:00</span>
           <em>${ev.district}</em>
         `;
-        li.querySelector(".delete-btn").onclick = function() {
-          events.splice(idx, 1);
+        li.querySelector(".delete-btn").onclick = () => {
+          delete events[ev.district];
           renderEventList();
-          updateMap(); // Heatmap nach Entfernen aktualisieren
+          updateMap();
         };
-        li.querySelector(".edit-btn").onclick = function() {
-          openEventModal(ev.district, ev, idx);
+        li.querySelector(".edit-btn").onclick = () => {
+          openEventModal(ev.district, ev);
         };
         ul.appendChild(li);
       });
@@ -483,7 +481,6 @@
         wochentag: getWochentag(date),
         jahreszeit: getJahreszeit(dt.getMonth() + 1),
         wetter: { sunny: "Sonnig", rainy: "Regen", cloudy: "Bewölkt", windy: "Windig" }[weather],
-        event_art: "Musik",
         feiertag: isHoliday(date),
         stunde: hour,
         events
