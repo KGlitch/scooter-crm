@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>E-Scooter Nachfrage</title>
+  <script src="https://d3js.org/d3.v7.min.js"></script>
+</head>
+<body>
+  <h1>Nachfragevorhersage</h1>
+  <label>Uhrzeit: <input id="hour" type="number" min="0" max="23" /></label>
+  <label>Temperatur: <input id="temp" type="number" /></label>
+  <button onclick="predict()">Vorhersagen</button>
+  <div id="chart"></div>
+
+  <script>
+    async function predict() {
+      const hour = parseInt(document.getElementById("hour").value);
+      const temperature = parseFloat(document.getElementById("temp").value);
+
+      const res = await fetch("http://localhost:8000/predict", {
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        body: JSON.stringify({hour, temperature, weather: "sunny"}) // Beispiel
+      });
+
+      const data = await res.json();
+      renderBarChart(data.demand_prediction);
+    }
+
+    function renderBarChart(value) {
+      d3.select("#chart").selectAll("*").remove();
+
+      const svg = d3.select("#chart")
+        .append("svg")
+        .attr("width", 300)
+        .attr("height", 200);
+
+      svg.append("rect")
+        .attr("x", 50)
+        .attr("y", 200 - value)
+        .attr("width", 50)
+        .attr("height", value)
+        .attr("fill", "steelblue");
+
+      svg.append("text")
+        .attr("x", 50)
+        .attr("y", 200 - value - 10)
+        .text(`${value} Anfragen`)
+        .attr("fill", "black");
+    }
+  </script>
+</body>
+</html>
