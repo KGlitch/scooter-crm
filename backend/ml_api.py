@@ -14,7 +14,7 @@ app.add_middleware(
     allow_headers=["*"]
 )
 
-model = joblib.load('/Users/matthiaswesthoff/Documents/studium/dhbw/neue konzepte2/scooter-crm/backend/xgb_scooter_model.joblib')
+model = joblib.load('xgb_scooter_model.joblib')
 
 feature_columns = [
     'Größe', 'Stunde_sin', 'Stunde_cos', 'Stunden_bis_Event_Start',
@@ -50,7 +50,7 @@ class DemandRequest(BaseModel):
     wetter: str
     feiertag: bool
     stunde: int
-    events: Optional[dict[str, Event]] = None  # <--- Events akzeptieren
+    events: Optional[dict[str, Event]] = None
 
 @app.post("/predict")
 def predict_demand(data: DemandRequest):
@@ -65,7 +65,7 @@ def predict_demand(data: DemandRequest):
         features = dict.fromkeys(feature_columns, 0.0)
         features["Stunde_sin"] = sin_hour
         features["Stunde_cos"] = cos_hour
-        if stadtteil in list(data.events.keys()):
+        if data.events is not None and stadtteil in data.events:
             print("Event is Happening!")
             features["Größe"] = data.events[stadtteil].participants
             features["Stunden_bis_Event_Start"] = data.events[stadtteil].startTime - data.stunde
