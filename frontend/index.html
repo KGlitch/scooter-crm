@@ -380,6 +380,12 @@
     const startTimeLabel = document.getElementById("start-time-label");
     const endTimeLabel = document.getElementById("end-time-label");
 
+    // Fix: Abbrechen-Button schließt das Modal (sicherstellen, dass das Element existiert und EventListener gesetzt wird)
+    const eventCancelBtn = document.getElementById("event-cancel");
+    if (eventCancelBtn) {
+      eventCancelBtn.addEventListener("click", closeEventModal);
+    }
+
     eventStartTimeInput.addEventListener("input", () => {
       startTimeLabel.textContent = `${eventStartTimeInput.value}:00`;
     });
