@@ -80,7 +80,11 @@ def predict_demand(data: DemandRequest):
         features[f"Jahreszeit_{data.jahreszeit}"] = 1
         features[f"Wetter_{data.wetter}"] = 1
 
-        features[f"Feiertag_{data.feiertag}"] = 1
+        feiertag_str = "True" if data.feiertag else "False"
+        features[f"Feiertag_{feiertag_str}"] = 1
+
+        # DEBUG: Kompletter Feature-Vektor
+        print(features)
 
         X = pd.DataFrame([features])
         y_pred = model.predict(X)[0]

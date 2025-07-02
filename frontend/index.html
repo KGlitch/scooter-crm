@@ -274,6 +274,12 @@
         <option value="rainy">Regen</option>
       </select>
 
+      <!-- Feiertag Checkbox -->
+      <label for="holiday" style="display:flex;align-items:center;gap:0.5em;">
+        <input type="checkbox" id="holiday">
+        Feiertag
+      </label>
+
       <label for="hour">Hour:</label>
       <input type="range" id="hour" min="0" max="23" value="12">
       <span id="hour-label">12:00</span>
@@ -361,6 +367,7 @@
     });
     document.getElementById("date").addEventListener("change", updateMap);
     document.getElementById("weather").addEventListener("change", updateMap);
+    document.getElementById("holiday").addEventListener("change", updateMap);
 
     let currentDemandData = {};
     let events = {};
@@ -486,11 +493,12 @@
 
     async function fetchRealDemand(date, hour, weather) {
       const dt = new Date(date);
+      const holidayChecked = document.getElementById("holiday").checked;
       const body = {
         wochentag: getWochentag(date),
         jahreszeit: getJahreszeit(dt.getMonth() + 1),
         wetter: { sunny: "Sonnig", rainy: "Regen", cloudy: "Bewölkt", windy: "Windig" }[weather],
-        feiertag: isHoliday(date),
+        feiertag: holidayChecked,
         stunde: hour,
         events
       };
