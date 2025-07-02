@@ -6,6 +6,7 @@ import joblib
 import pandas as pd
 from typing import List, Optional
 
+# --- FastAPI Setup und Modell laden ---
 app = FastAPI()
 app.add_middleware(
     CORSMiddleware,
@@ -16,6 +17,7 @@ app.add_middleware(
 
 model = joblib.load('xgb_scooter_model.joblib')
 
+# --- Feature- und District-Definitionen ---
 feature_columns = [
     'Größe', 'Stunde_sin', 'Stunde_cos', 'Stunden_bis_Event_Start',
     'Stunden_bis_Event_Ende', 'Stadtteil_Friedrichshain',
@@ -36,6 +38,7 @@ districts = [
     "Neukölln", "Prenzlauer Berg", "Reinickendorf", "Spandau", "Treptow"
 ]
 
+# --- Event- und Request-Modelle ---
 class Event(BaseModel):
     district: str
     name: str
@@ -52,15 +55,18 @@ class DemandRequest(BaseModel):
     stunde: int
     events: Optional[dict[str, Event]] = None
 
+# --- Prediction Endpoint ---
 @app.post("/predict")
 def predict_demand(data: DemandRequest):
     from math import sin, cos, pi
+    # --- Zeit-Features berechnen ---
     hour_angle = 2 * pi * data.stunde / 24
     sin_hour = round(sin(hour_angle), 4)
     cos_hour = round(cos(hour_angle), 4)
 
     predictions = {}
 
+    # --- Für jeden Stadtteil Vorhersage berechnen ---
     for stadtteil in districts:
         features = dict.fromkeys(feature_columns, 0.0)
         features["Stunde_sin"] = sin_hour
@@ -80,12 +86,11 @@ def predict_demand(data: DemandRequest):
         features[f"Jahreszeit_{data.jahreszeit}"] = 1
         features[f"Wetter_{data.wetter}"] = 1
 
+        # --- Feiertag-Feature setzen ---
         feiertag_str = "True" if data.feiertag else "False"
         features[f"Feiertag_{feiertag_str}"] = 1
 
-        # DEBUG: Kompletter Feature-Vektor
-        print(features)
-
+        # --- Prediction durchführen ---
         X = pd.DataFrame([features])
         y_pred = model.predict(X)[0]
         predictions[stadtteil] = round(float(y_pred), 2)

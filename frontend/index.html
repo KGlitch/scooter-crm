@@ -33,7 +33,6 @@
       box-shadow: 2px 0 6px rgba(0,0,0,0.1);
       display: flex;
       flex-direction: column;
-      /* Neu: Scrollbar für Sidebar */
       max-height: 100vh;
       overflow-y: auto;
     }
@@ -70,7 +69,6 @@
       box-shadow: 0 0 6px rgba(0,0,0,0.1);
       font-size: 14px;
     }
-    /* Modal zentriert und schöner */
     #event-modal {
       display: none;
       position: fixed;
@@ -175,7 +173,7 @@
       z-index: 1;
     }
 
-    /* Neu: StarWars-Headline CSS */
+    /* StarWars-Headline CSS */
     .starwars-headline {
       font-family: 'Arial Black', 'Arial', sans-serif;
       color: #ffe81f;
@@ -274,7 +272,6 @@
         <option value="rainy">Regen</option>
       </select>
 
-      <!-- Feiertag Checkbox -->
       <label for="holiday" style="display:flex;align-items:center;gap:0.5em;">
         <input type="checkbox" id="holiday">
         Feiertag
@@ -303,7 +300,6 @@
     <div id="map"></div>
     <div class="tooltip" id="tooltip" style="display:none;"></div>
 
-    <!-- Info-Box für Gesamtnachfrage -->
     <div style="position:absolute; left:320px; top:110px; z-index:10; background:rgba(255,255,255,0.95); padding:0.7em 1.2em; border-radius:8px; box-shadow:0 2px 8px rgba(30,58,95,0.08); font-size:1.25em; font-weight:bold; color:#1e3a5f; min-width:220px;" id="total-demand-box">
       Gesamtnachfrage: <span id="total-demand">–</span>
     </div>
@@ -338,6 +334,7 @@
   </div>
 
   <script>
+    // --- D3 Farbschema und SVG Setup ---
     const berlinDistricts = [
   "Mitte", "Friedrichshain", "Kreuzberg", "Prenzlauer Berg",
   "Neukölln", "Spandau", "Marzahn", "Lichtenberg",
@@ -359,6 +356,7 @@
       }));
     const g = svg.append("g");
 
+    // --- Projektion und Pfad für GeoJSON ---
     const projection = d3.geoMercator()
       .center([13.4, 52.52])
       .scale(40000)
@@ -366,6 +364,7 @@
 
     const path = d3.geoPath().projection(projection);
 
+    // --- UI-Event-Listener ---
     document.getElementById("hour").addEventListener("input", e => {
       document.getElementById("hour-label").textContent = `${e.target.value}:00`;
       updateMap();
@@ -377,7 +376,7 @@
     let currentDemandData = {};
     let events = {};
 
-    // Event Modal Logic
+    // --- Event Modal Logic ---
     const eventModal = document.getElementById("event-modal");
     const eventForm = document.getElementById("event-form");
     const eventNameInput = document.getElementById("event-name");
@@ -385,19 +384,19 @@
     const eventCategoryInput = document.getElementById("event-category");
     const eventModalTitle = document.getElementById("event-modal-title");
     let selectedDistrict = null;
-    let editIndex = null; // Neu: Index des zu bearbeitenden Events
+    let editIndex = null;
 
     const eventStartTimeInput = document.getElementById("event-start-time");
     const eventEndTimeInput = document.getElementById("event-end-time");
     const startTimeLabel = document.getElementById("start-time-label");
     const endTimeLabel = document.getElementById("end-time-label");
 
-    // Fix: Abbrechen-Button schließt das Modal (sicherstellen, dass das Element existiert und EventListener gesetzt wird)
     const eventCancelBtn = document.getElementById("event-cancel");
     if (eventCancelBtn) {
       eventCancelBtn.addEventListener("click", closeEventModal);
     }
 
+    // --- Zeitlabels im Modal aktualisieren ---
     eventStartTimeInput.addEventListener("input", () => {
       startTimeLabel.textContent = `${eventStartTimeInput.value}:00`;
     });
@@ -426,6 +425,7 @@
       editIndex = null;
     }
 
+    // --- Event speichern (Form Submit) ---
     eventForm.addEventListener("submit", function(e) {
       e.preventDefault();
       const newEvent = {
@@ -443,6 +443,7 @@
       updateMap();
     });
 
+    // --- Event-Liste in der Sidebar rendern ---
     function renderEventList() {
       const ul = document.getElementById("event-list");
       ul.innerHTML = "";
@@ -479,6 +480,7 @@
       });
     }
 
+    // --- Hilfsfunktionen für Zeit, Jahreszeit, Feiertag ---
     function getWochentag(dateStr) {
       const dt = new Date(dateStr);
       return ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"][dt.getDay()];
@@ -496,6 +498,7 @@
       return dt.getDay() === 0 || dt.getDay() === 6; // So & Sa als "Feiertag"
     }
 
+    // --- API Call für Demand Prediction ---
     async function fetchRealDemand(date, hour, weather) {
       const dt = new Date(date);
       const holidayChecked = document.getElementById("holiday").checked;
@@ -521,6 +524,7 @@
       }
     }
 
+    // --- Map und Gesamtnachfrage aktualisieren ---
     async function updateMap() {
       const date = document.getElementById("date").value;
       const hour = parseInt(document.getElementById("hour").value);
@@ -538,12 +542,12 @@
             : "#eee";
         });
 
-        // Gesamtnachfrage aktualisieren
         const totalDemand = Object.values(currentDemandData).reduce((a, b) => a + b, 0);
         document.getElementById("total-demand").textContent =
           totalDemand > 0 ? totalDemand.toLocaleString("de-DE") : "–";
     }
 
+    // --- GeoJSON laden und Karte initialisieren ---
     d3.json("https://raw.githubusercontent.com/codeforgermany/click_that_hood/main/public/data/berlin.geojson")
       .then(geoData => {
         g.selectAll("path")
@@ -653,7 +657,6 @@
 
           star.x += star.vx;
           star.y += star.vy;
-          // Reset star if out of bounds
           if (
             star.x < 0 || star.x > w ||
             star.y < 0 || star.y > h
@@ -693,12 +696,11 @@
       const crawl = document.getElementById('starwars-crawl');
       crawlContainer.style.display = 'block';
       crawl.style.animation = 'none';
-      // Trigger reflow to restart animation
       void crawl.offsetWidth;
       crawl.style.animation = '';
       setTimeout(() => {
         crawlContainer.style.display = 'none';
-      }, 28000); // Dauer der Animation
+      }, 28000);
     }
 
     // Headline im StarWars-Stil anpassen
