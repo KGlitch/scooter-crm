@@ -303,6 +303,11 @@
     <div id="map"></div>
     <div class="tooltip" id="tooltip" style="display:none;"></div>
 
+    <!-- Info-Box für Gesamtnachfrage -->
+    <div style="position:absolute; left:320px; top:110px; z-index:10; background:rgba(255,255,255,0.95); padding:0.7em 1.2em; border-radius:8px; box-shadow:0 2px 8px rgba(30,58,95,0.08); font-size:1.25em; font-weight:bold; color:#1e3a5f; min-width:220px;" id="total-demand-box">
+      Gesamtnachfrage: <span id="total-demand">–</span>
+    </div>
+
     <!-- Event Modal -->
    <div id="event-modal" style="display:none; position:fixed; left:0; top:0; width:100vw; height:100vh; background:rgba(0,0,0,0.3); align-items:center; justify-content:center; z-index:1000;">
     <form id="event-form" style="background:white; padding:2rem; border-radius:8px; min-width:300px; display:flex; flex-direction:column; gap:1rem; box-shadow:0 2px 12px rgba(0,0,0,0.2);">
@@ -532,6 +537,11 @@
             ? colorScale(currentDemandData[name] || 0)
             : "#eee";
         });
+
+        // Gesamtnachfrage aktualisieren
+        const totalDemand = Object.values(currentDemandData).reduce((a, b) => a + b, 0);
+        document.getElementById("total-demand").textContent =
+          totalDemand > 0 ? totalDemand.toLocaleString("de-DE") : "–";
     }
 
     d3.json("https://raw.githubusercontent.com/codeforgermany/click_that_hood/main/public/data/berlin.geojson")
